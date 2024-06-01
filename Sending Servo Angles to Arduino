@@ -1,0 +1,75 @@
+# This code converts the mouse coordinates to servo angles and sends them to the Arduino
+
+import serial.tools.list_ports
+import pygame
+
+# screen initialising
+width = 500
+height = 500
+fps = 10    # setting the fps too high will cause the program to crash as it will be sending too much data per second
+# 10 fps means data is sent 10 time per second
+timer = pygame.time.Clock()
+screen = pygame.display.set_mode([width, height]) # display the screen
+
+ports = serial.tools.list_ports.comports()  # makes a list of all available ports
+
+serialInst = serial.Serial()
+portsList = []
+
+for item in ports:
+    portsList.append(str(item))     # copy available ports into portsList
+    print(str(item))
+
+COM = input("Select COM port for Arduino by number: ")
+
+for i in range(len(portsList)):
+    if portsList[i].startswith("COM" + str(COM)):   # find which port user selected
+        portUse = "COM" + str(COM)
+        print("Port used for Arduino connection: ", portUse)
+
+
+# set up serial ports
+
+serialInst.baudrate = 9600      # set baud rate. must be same as Arduino's
+serialInst.port = portUse       # select which port to use
+serialInst.open()               # open the port
+
+
+run = True
+while run:
+
+    screen.fill('white')
+    timer.tick(fps)         # refresh screen at chosen fps
+
+    mouse_position = pygame.mouse.get_pos()     # get the mouse position in array [x, y]
+    #print(mouse_position)
+    pygame.draw.circle(screen, 'red', mouse_position, 10)   # draw red circle where the mouse is on the screen
+
+    for event in pygame.event.get(): # checking for any events that took place
+        if event.type == pygame.QUIT: # if screen is closed
+            run = False
+            exit()
+
+
+    pygame.display.flip() # refreshing screen
+
+    # making a string to send over the mouse coordinates
+    '''
+    mouse_position_string = 'X' + str(mouse_position[0]) + 'Y' + str(height - mouse_position[1])
+    print(mouse_position_string)
+    '''
+    # convert from cartesian coordinates to angle for the servo motors
+
+    scalingConstantX = 180/width
+    scalingConstantY = 180/height
+
+    servoX = int(mouse_position[0] * scalingConstantX)
+    servoY = int((height-mouse_position[1]) * scalingConstantY)
+
+    servo_angle_string = 'X' + str(servoX) + 'Y' + str(servoY)
+    print("Servo angles: ", servo_angle_string)
+
+    serialInst.write(servo_angle_string.encode('utf-8')) # this send the command to the Arduino. must be encoded for some reason
+   
+    # cannot print what is being sent, that somehow messes up the data being sent
+    
